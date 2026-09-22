@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wardogs KW - 4v4 Custom FPS</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000000;
+      color: #ffd700;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      user-select: none;
+    }
+
+    #gameCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* CS-Style Compact Crosshair */
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      display: none;
+      width: 18px;
+      height: 18px;
+      z-index: 30;
+    }
+    .ch-line {
+      position: absolute;
+      background: #ffd700;
+      box-shadow: 0 0 2px #000;
+    }
+    .ch-top { top: 0; left: 8px; width: 2px; height: 5px; }
+    .ch-bottom { bottom: 0; left: 8px; width: 2px; height: 5px; }
+    .ch-left { left: 0; top: 8px; width: 5px; height: 2px; }
+    .ch-right { right: 0; top: 8px; width: 5px; height: 2px; }
+    .ch-dot { top: 8px; left: 8px; width: 2px; height: 2px; background: #ffd700; border-radius: 50%; }
+
+    /* Minimalist Red Dot ADS Scope */
+    #holoScope {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 140px;
+      height: 140px;
+      pointer-events: none;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+    }
+    .holo-frame {
+      position: absolute;
+      width: 130px;
+      height: 130px;
+      border: 2px solid #ffd700;
+      border-radius: 50%;
+      box-shadow: inset 0 0 15px rgba(255, 215, 0, 0.3), 0 0 12px rgba(255, 215, 0, 0.4);
+      background: radial-gradient(circle, rgba(255, 215, 0, 0.05) 0%, rgba(0, 0, 0, 0.5) 75%);
+    }
+    .holo-dot {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: #ef4444;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #ff0000, 0 0 14px #ef4444;
+    }
+
+    /* Hitmarker Effect */
+    #hitmarker {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      width: 24px;
+      height: 24px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.12s ease-out, transform 0.1s;
+      z-index: 35;
+    }
+    .hm-line {
+      position: absolute;
+      width: 8px;
+      height: 2.5px;
+      background: #ef4444;
+      box-shadow: 0 0 6px rgba(239, 68, 68, 0.8);
+    }
+    .hm-1 { top: 2px; left: 2px; transform: rotate(45deg); }
+    .hm-2 { top: 2px; right: 2px; transform: rotate(-45deg); }
+    .hm-3 { bottom: 2px; left: 2px; transform: rotate(-45deg); }
+    .hm-4 { bottom: 2px; right: 2px; transform: rotate(45deg); }
+
+    /* HUD Overlay */
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: none;
+      z-index: 25;
+    }
+
+    /* Top Match Bar */
+    .top-bar {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(0, 0, 0, 0.9);
+      border: 2px solid #ffd700;
+      padding: 10px 24px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 19px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.35);
+      pointer-events: none;
+    }
+    .team-score-red { color: #ef4444; text-shadow: 0 0 10px rgba(239, 68, 68, 0.6); }
+    .team-score-blue { color: #3b82f6; text-shadow: 0 0 10px rgba(59, 130, 246, 0.6); }
+    .vs-text { color: #ffd700; font-size: 14px; font-weight: 900; }
+    .room-badge {
+      font-size: 11px;
+      background: #ffd700;
+      padding: 4px 8px;
+      border-radius: 99px;
+      color: #000;
+      font-weight: 900;
+    }
+
+    /* Animated Kill Logs */
+    #killFeed {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end;
+      z-index: 40;
+      pointer-events: none;
+    }
+    .kill-log-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.95);
+      border: 1px solid #ffd700;
+      border-radius: 10px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 800;
+      color: #fff;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+      animation: slideInRight 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      transition: all 0.3s ease;
+    }
+    .team-txt-red { color: #ef4444; font-weight: 900; }
+    .team-txt-blue { color: #3b82f6; font-weight: 900; }
+    .assist-txt { color: #ffd700; font-size: 12px; font-weight: 700; margin-left: -4px; }
+    .gun-icon { font-size: 15px; color: #ffd700; display: inline-flex; align-items: center; gap: 4px; }
+    .headshot-badge {
+      background: #dc2626;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 900;
+      padding: 2px 6px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 0 8px rgba(220, 38, 38, 0.7);
+    }
+
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(50px) scale(0.9); }
+      to { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    /* Bottom HUD */
+    .bottom-hud {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      right: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .hud-box {
+      background: rgba(0, 0, 0, 0.9);
+      border: 2px solid #ffd700;
+      padding: 12px 24px;
+      border-radius: 18px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .health-val { font-size: 38px; font-weight: 900; color: #ffd700; text-shadow: 0 0 12px rgba(255, 215, 0, 0.5); }
+    .ammo-val { font-size: 38px; font-weight: 900; color: #ffd700; text-shadow: 0 0 12px rgba(255, 215, 0, 0.5); }
+    .hud-sub { font-size: 12px; color: #cbd5e1; font-weight: 800; text-transform: uppercase; }
+
+    /* Damage Flash */
+    #damageFlash {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, transparent 35%, rgba(220, 38, 38, 0.7) 100%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.1s ease;
+      z-index: 28;
+    }
+
+    /* Death Screen */
+    #deathScreen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #ef4444;
+      font-size: 40px;
+      font-weight: 900;
+      backdrop-filter: blur(6px);
+      letter-spacing: 2px;
+      z-index: 45;
+    }
+    #deathScreen span { font-size: 18px; color: #ffd700; margin-top: 12px; font-weight: 700; }
+
+    /* Match Victory Modal */
+    #victoryModal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.92);
+      backdrop-filter: blur(12px);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 80;
+      color: #fff;
+      animation: fadeIn 0.4s ease;
+    }
+    .vic-title { font-size: 56px; font-weight: 900; letter-spacing: 3px; margin-bottom: 8px; }
+    .vic-sub { font-size: 22px; color: #ffd700; font-weight: 800; margin-bottom: 24px; }
+    .vic-btn {
+      padding: 14px 36px;
+      font-size: 17px;
+      font-weight: 900;
+      border-radius: 999px;
+      border: 2px solid #ffd700;
+      cursor: pointer;
+      background: #ffd700;
+      color: #000;
+      box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+    }
+
+    /* IN-GAME ESC PAUSE MENU */
+    #pauseMenuModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(12px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 100000;
+      pointer-events: auto;
+    }
+    .pause-card {
+      background: #000000;
+      border: 3px solid #ffd700;
+      border-radius: 24px;
+      padding: 36px 44px;
+      width: 440px;
+      max-width: 92%;
+      text-align: center;
+      box-shadow: 0 0 35px rgba(255, 215, 0, 0.4);
+      color: #ffd700;
+    }
+    .pause-card h2 {
+      font-size: 28px;
+      font-weight: 900;
+      margin-bottom: 24px;
+      letter-spacing: 2px;
+      border-bottom: 2px solid #ffd700;
+      padding-bottom: 12px;
+    }
+    .pause-setting-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: left;
+      margin-bottom: 20px;
+    }
+    .pause-setting-row label {
+      font-size: 13px;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+    }
+    .pause-setting-row input[type="range"] {
+      width: 100%;
+      accent-color: #ffd700;
+      cursor: pointer;
+      height: 6px;
+      background: #333;
+      border-radius: 4px;
+    }
+    .pause-btn-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .pause-btn {
+      width: 100%;
+      padding: 13px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 900;
+      cursor: pointer;
+      border: 2px solid #ffd700;
+      transition: all 0.2s;
+    }
+    .btn-resume { background: #ffd700; color: #000; }
+    .btn-resume:hover { box-shadow: 0 0 20px rgba(255, 215, 0, 0.7); transform: translateY(-2px); }
+    .btn-lobby { background: #000; color: #ffd700; }
+    .btn-lobby:hover { background: #1a1a1a; box-shadow: 0 0 15px rgba(255, 215, 0, 0.4); }
+
+    /* Match Start Countdown Overlay */
+    #countdownOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      pointer-events: none;
+      z-index: 50;
+    }
+    #countdownNum {
+      font-size: 110px;
+      font-weight: 900;
+      color: #ffd700;
+      text-shadow: 0 0 35px rgba(255, 215, 0, 0.9), 0 0 70px rgba(255, 215, 0, 0.6);
+      animation: countPulse 0.9s ease-out infinite;
+    }
+    #countdownSub {
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: 2px;
+      margin-top: -10px;
+    }
+    @keyframes countPulse {
+      0% { transform: scale(1.3); opacity: 0.7; }
+      50% { transform: scale(1.0); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.8; }
+    }
+
+    /* Scoreboard Overlay (TAB Key) */
+    #scoreboardModal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(10px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 60;
+      pointer-events: none;
+    }
+    .scoreboard-card {
+      width: 760px;
+      max-width: 95%;
+      background: #000000;
+      border: 3px solid #ffd700;
+      border-radius: 20px;
+      padding: 24px 30px;
+      box-shadow: 0 0 35px rgba(255, 215, 0, 0.4);
+      color: #ffd700;
+    }
+    .sb-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #ffd700;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+    }
+    .sb-header h2 { font-size: 22px; font-weight: 900; color: #ffd700; }
+    .sb-teams-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .sb-team-col {
+      background: rgba(255, 215, 0, 0.05);
+      border-radius: 14px;
+      padding: 16px;
+      border: 1px solid rgba(255, 215, 0, 0.3);
+    }
+    .sb-team-title {
+      font-size: 17px;
+      font-weight: 900;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      padding-bottom: 8px;
+      border-bottom: 2px solid;
+    }
+    .title-red { color: #ef4444; border-color: #ef4444; }
+    .title-blue { color: #3b82f6; border-color: #3b82f6; }
+    .sb-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    .sb-table th { color: #ffd700; font-weight: 800; text-align: center; padding: 6px 4px; }
+    .sb-table th:first-child { text-align: left; }
+    .sb-table td { padding: 8px 4px; text-align: center; font-weight: 700; color: #fff; border-top: 1px solid rgba(255,255,255,0.1); }
+    .sb-table td:first-child { text-align: left; }
+    .sb-self-row { background: rgba(255, 215, 0, 0.2); color: #ffd700 !important; font-weight: 900; }
+
+    /* ========================================================= */
+    /* 1. INITIAL LANDING SCREEN (BIGGER INPUT & BUTTONS)        */
+    /* ========================================================= */
+    #landingModal {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: radial-gradient(circle at center, #111111, #000000 90%);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 999999; pointer-events: auto; padding: 24px; overflow-y: auto;
+    }
+    .landing-card {
+      background: #000000;
+      border: 3px solid #ffd700;
+      padding: 38px 44px;
+      border-radius: 28px;
+      width: 560px;
+      max-width: 96%;
+      text-align: center;
+      box-shadow: 0 0 45px rgba(255, 215, 0, 0.4);
+      color: #ffd700;
+    }
+    .landing-card h1 {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      text-shadow: 0 0 25px rgba(255, 215, 0, 0.7);
+      margin-bottom: 6px;
+    }
+    .landing-card p { color: #cbd5e1; font-size: 15px; margin-bottom: 26px; }
+
+    /* BIGGER USERNAME INPUT */
+    .big-input-box {
+      margin-bottom: 18px;
+      text-align: left;
+    }
+    .big-input-box label {
+      display: block;
+      font-size: 14px;
+      font-weight: 900;
+      color: #ffd700;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+    }
+    .big-input-box input {
+      width: 100%;
+      padding: 16px 20px;
+      background: #0f0f0f;
+      border: 3px solid #ffd700;
+      border-radius: 16px;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 800;
+      outline: none;
+      box-shadow: inset 0 0 12px rgba(255, 215, 0, 0.2);
+      transition: all 0.2s;
+    }
+    .big-input-box input:focus {
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.7), inset 0 0 12px rgba(255, 215, 0, 0.3);
+      border-color: #fff;
+    }
+
+    /* BIGGER CREATE ROOM BUTTON */
+    .btn-create-room {
+      width: 100%;
+      padding: 18px;
+      border-radius: 16px;
+      background: #ffd700;
+      color: #000;
+      font-size: 18px;
+      font-weight: 900;
+      border: 3px solid #ffd700;
+      cursor: pointer;
+      box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+      transition: all 0.2s;
+      margin-bottom: 24px;
+      letter-spacing: 1px;
+    }
+    .btn-create-room:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 0 45px rgba(255, 215, 0, 0.9);
+      background: #fff;
+      border-color: #fff;
+    }
+
+    .rooms-browser {
+      background: #000;
+      border: 2px solid #ffd700;
+      border-radius: 18px;
+      padding: 16px 18px;
+      text-align: left;
+    }
+    .rooms-browser-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13.5px;
+      font-weight: 900;
+      margin-bottom: 12px;
+      border-bottom: 1px solid rgba(255,215,0,0.3);
+      padding-bottom: 6px;
+    }
+    .rooms-scroll-list {
+      max-height: 140px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .room-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #111;
+      border: 1px solid rgba(255, 215, 0, 0.3);
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+    .btn-join {
+      padding: 8px 16px;
+      background: #ffd700;
+      color: #000;
+      font-weight: 900;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    .btn-join:hover:not(:disabled) {
+      background: #fff;
+      box-shadow: 0 0 15px rgba(255,255,255,0.8);
+      transform: scale(1.05);
+    }
+    .btn-join:disabled { background: #444; color: #888; cursor: not-allowed; }
+
+    /* ========================================================= */
+    /* 2. CUSTOM ROOM LOBBY (VALORANT / POINT BLANK STYLE)       */
+    /* ========================================================= */
+    #customLobbyModal {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: radial-gradient(circle at center, #111111, #000000 90%);
+      display: none; justify-content: center; align-items: center;
+      z-index: 999999; pointer-events: auto; padding: 20px; overflow-y: auto;
+    }
+    .custom-lobby-card {
+      background: #000000;
+      border: 3px solid #ffd700;
+      padding: 28px 34px;
+      border-radius: 24px;
+      width: 780px;
+      max-width: 98%;
+      box-shadow: 0 0 45px rgba(255, 215, 0, 0.4);
+      color: #ffd700;
+      text-align: center;
+    }
+    .lobby-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #ffd700;
+      padding-bottom: 12px;
+      margin-bottom: 18px;
+    }
+    .lobby-header-bar h2 { font-size: 24px; font-weight: 900; }
+    .host-badge { font-size: 12px; background: #ffd700; color: #000; padding: 4px 10px; border-radius: 99px; font-weight: 900; }
+
+    /* 4v4 Slots Grid */
+    .slots-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .team-slot-column {
+      background: #0a0a0a;
+      border: 2px solid;
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .slot-col-red { border-color: #ef4444; }
+    .slot-col-blue { border-color: #3b82f6; }
+    .slot-col-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 15px;
+      font-weight: 900;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      padding-bottom: 6px;
+    }
+    .slot-item {
+      background: #141414;
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .slot-empty { color: #64748b; font-style: italic; }
+    .btn-switch-team {
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 800;
+      background: transparent;
+      border: 1px solid #ffd700;
+      color: #ffd700;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    /* Host Match Settings Panel */
+    .host-settings-panel {
+      background: #0f0f0f;
+      border: 2px solid #ffd700;
+      border-radius: 14px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    .settings-title { font-size: 13px; font-weight: 900; margin-bottom: 10px; color: #ffd700; }
+    .settings-flex { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
+
+    .win-btn-group { display: flex; gap: 6px; }
+    .win-btn-opt {
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 900;
+      border: 1px solid #ffd700;
+      background: #000;
+      color: #ffd700;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .win-btn-opt.selected { background: #ffd700; color: #000; }
+
+    .btn-start-match {
+      width: 100%;
+      padding: 16px;
+      border-radius: 14px;
+      background: #ffd700;
+      color: #000;
+      font-size: 18px;
+      font-weight: 900;
+      border: 2px solid #ffd700;
+      cursor: pointer;
+      box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+      transition: all 0.2s;
+    }
+    .btn-start-match:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 0 45px rgba(255, 215, 0, 0.9); }
+    .btn-start-match:disabled { background: #333; color: #777; border-color: #555; cursor: not-allowed; box-shadow: none; }
+
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #333; transition: .3s; border-radius: 24px; border: 1px solid #ffd700;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+      background-color: #ffd700; transition: .3s; border-radius: 50%;
+    }
+    input:checked + .slider { background-color: #ef4444; }
+    input:checked + .slider:before { transform: translateX(20px); background-color: #fff; }
+
+    /* In-Room Custom Modal for Room Name */
+    #promptRoomModal {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(10px);
+      display: none; justify-content: center; align-items: center;
+      z-index: 10000000;
+    }
+    .prompt-card {
+      background: #000;
+      border: 3px solid #ffd700;
+      border-radius: 20px;
+      padding: 28px 34px;
+      width: 440px;
+      max-width: 90%;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(255, 215, 0, 0.5);
+    }
+    .prompt-card h3 { font-size: 20px; font-weight: 900; margin-bottom: 16px; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Red Dot ADS Scope -->
+  <div id="holoScope">
+    <div class="holo-frame"></div>
+    <div class="holo-dot"></div>
+  </div>
+
+  <!-- CS Crosshair -->
+  <div id="crosshair">
+    <div class="ch-line ch-top"></div>
+    <div class="ch-line ch-bottom"></div>
+    <div class="ch-line ch-left"></div>
+    <div class="ch-line ch-right"></div>
+    <div class="ch-dot"></div>
+  </div>
+
+  <!-- Hit Marker -->
+  <div id="hitmarker">
+    <div class="hm-line hm-1"></div>
+    <div class="hm-line hm-2"></div>
+    <div class="hm-line hm-3"></div>
+    <div class="hm-line hm-4"></div>
+  </div>
+
+  <!-- Damage Screen Flash -->
+  <div id="damageFlash"></div>
+
+  <!-- Ingame HUD -->
+  <div id="hud">
+    <div class="top-bar">
+      <span class="team-score-red" id="scoreRed">RED: 0</span>
+      <span class="vs-text">VS</span>
+      <span class="team-score-blue" id="scoreBlue">BLUE: 0</span>
+      <span class="room-badge" id="roomDisplayBadge">ROOM: DEFAULT</span>
+    </div>
+
+    <div id="killFeed"></div>
+
+    <div class="bottom-hud">
+      <div class="hud-box">
+        <div>
+          <div class="health-val" id="healthVal">100</div>
+          <div class="hud-sub">Darah / HP</div>
+        </div>
+      </div>
+
+      <div class="hud-box" style="text-align: right;">
+        <div class="ammo-val" id="ammoVal">30 / 90</div>
+        <div class="hud-sub">Assault Rifle (Peluru)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scoreboard Overlay (TAB) -->
+  <div id="scoreboardModal">
+    <div class="scoreboard-card">
+      <div class="sb-header">
+        <h2>WARDOGS KW - SCOREBOARD</h2>
+        <span id="sbRoomTitle" style="font-weight: 700; color: #ffd700; font-size: 13px;">ROOM: DEFAULT</span>
+      </div>
+
+      <div class="sb-teams-grid">
+        <div class="sb-team-col">
+          <div class="sb-team-title title-red">
+            <span>TIM MERAH</span>
+            <span id="sbScoreRed">0 SKOR</span>
+          </div>
+          <table class="sb-table">
+            <thead>
+              <tr><th>Pemain</th><th>K</th><th>D</th><th>A</th></tr>
+            </thead>
+            <tbody id="sbBodyRed"></tbody>
+          </table>
+        </div>
+
+        <div class="sb-team-col">
+          <div class="sb-team-title title-blue">
+            <span>TIM BIRU</span>
+            <span id="sbScoreBlue">0 SKOR</span>
+          </div>
+          <table class="sb-table">
+            <thead>
+              <tr><th>Pemain</th><th>K</th><th>D</th><th>A</th></tr>
+            </thead>
+            <tbody id="sbBodyBlue"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- In-game Pause ESC Menu -->
+  <div id="pauseMenuModal">
+    <div class="pause-card">
+      <h2>PENGATURAN GAME</h2>
+      <div class="pause-setting-row">
+        <label><span>VOLUME MASTER</span><span id="volValTxt">100%</span></label>
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" />
+      </div>
+      <div class="pause-setting-row">
+        <label><span>MOUSE SENSITIVITY</span><span id="pauseSensValTxt">1.0</span></label>
+        <input type="range" id="pauseSensSlider" min="0.1" max="3.0" step="0.1" value="1.0" />
+      </div>
+      <div class="pause-btn-stack">
+        <button type="button" class="pause-btn btn-resume" id="btnResumeGame">LANJUTKAN BERMAIN</button>
+        <button type="button" class="pause-btn btn-lobby" id="btnBackToLobby">KEMBALI KE LOBBY</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Death Screen -->
+  <div id="deathScreen">
+    ELIMINATED
+    <span>Respawn di markas tim dalam 3 detik...</span>
+  </div>
+
+  <!-- Victory Modal -->
+  <div id="victoryModal">
+    <div class="vic-title" id="vicTitle">VICTORY!</div>
+    <div class="vic-sub" id="vicSub">TIM MERAH MEMENANGKAN PERTANDINGAN!</div>
+    <button class="vic-btn" onclick="location.reload()">KEMBALI KE LOBBY</button>
+  </div>
+
+  <!-- Match Start Countdown Overlay -->
+  <div id="countdownOverlay">
+    <div id="countdownNum">3</div>
+    <div id="countdownSub">PERSIAPAN DIMULAI...</div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 1. LANDING SCREEN: BIG USERNAME FIELD + BIG CREATE ROOM BUTTON            -->
+  <!-- ========================================================================= -->
+  <div id="landingModal">
+    <div class="landing-card">
+      <h1>WARDOGS KW</h1>
+      <p>4v4 Tactical FPS Multiplayer Shooter</p>
+
+      <div class="big-input-box">
+        <label for="usernameInput">MASUKKAN USERNAME ANDA:</label>
+        <input type="text" id="usernameInput" placeholder="Contoh: ShadowHunter" maxlength="15" autofocus />
+      </div>
+
+      <button type="button" class="btn-create-room" id="btnOpenCreateRoom" onclick="handleCreateRoomClick()">+ BUAT ROOM BARU</button>
+
+      <div class="rooms-browser">
+        <div class="rooms-browser-header">
+          <span>DAFTAR ROOM AKTIF (LIVE):</span>
+          <span style="cursor:pointer; color:#ffd700;" onclick="requestRoomList()">↻ REFRESH</span>
+        </div>
+        <div class="rooms-scroll-list" id="activeRoomsList">
+          <div style="color:#ffd700; font-size:12px; text-align:center;">Memuat room aktif...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Pop-Up Buat Nama Room -->
+  <div id="promptRoomModal">
+    <div class="prompt-card">
+      <h3>BERI NAMA ROOM BARU</h3>
+      <div class="big-input-box" style="margin-bottom: 18px;">
+        <input type="text" id="customRoomNameInput" placeholder="Contoh: WAR_01" maxlength="10" />
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="btn-create-room" style="margin: 0; padding: 12px;" onclick="confirmCreateRoom()">BUAT SEKARANG</button>
+        <button type="button" class="btn-create-room" style="margin: 0; padding: 12px; background:#222; color:#fff; border-color:#444;" onclick="closePromptRoomModal()">BATAL</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 2. CUSTOM ROOM LOBBY SCREEN (4v4 SLOTS, NO-BOT & WIN TARGET SELECTION)    -->
+  <!-- ========================================================================= -->
+  <div id="customLobbyModal">
+    <div class="custom-lobby-card">
+      <div class="lobby-header-bar">
+        <div>
+          <h2 id="lobbyRoomTitle">CUSTOM ROOM: [ROOM_01]</h2>
+          <span style="font-size: 11px; color: #cbd5e1;">Tunggu pemain lain bergabung atau mulai match bersama Bot</span>
+        </div>
+        <div class="host-badge" id="lobbyHostBadge">ROOM MASTER: HOST</div>
+      </div>
+
+      <!-- 4v4 Slots Grid -->
+      <div class="slots-grid">
+        <!-- Team Red Column -->
+        <div class="team-slot-column slot-col-red">
+          <div class="slot-col-header" style="color: #ef4444;">
+            <span>🔴 TIM MERAH (<span id="redSlotCount">1</span>/4)</span>
+            <button type="button" class="btn-switch-team" onclick="switchMyTeam('red')">PINDAH KE SINI</button>
+          </div>
+          <div id="redSlotsList"></div>
+        </div>
+
+        <!-- Team Blue Column -->
+        <div class="team-slot-column slot-col-blue">
+          <div class="slot-col-header" style="color: #3b82f6;">
+            <span>🔵 TIM BIRU (<span id="blueSlotCount">0</span>/4)</span>
+            <button type="button" class="btn-switch-team" onclick="switchMyTeam('blue')">PINDAH KE SINI</button>
+          </div>
+          <div id="blueSlotsList"></div>
+        </div>
+      </div>
+
+      <!-- Host Settings Panel -->
+      <div class="host-settings-panel">
+        <div class="settings-title">PENGATURAN MATCH (HANYA ROOM MASTER):</div>
+        <div class="settings-flex">
+          <div>
+            <span style="font-size: 12px; font-weight: 800; color: #fff; margin-right: 8px;">TARGET WIN:</span>
+            <div class="win-btn-group" id="winButtonsGroup">
+              <button type="button" class="win-btn-opt selected" onclick="hostChangeWinTarget(40)">40 KILL</button>
+              <button type="button" class="win-btn-opt" onclick="hostChangeWinTarget(60)">60 KILL</button>
+              <button type="button" class="win-btn-opt" onclick="hostChangeWinTarget(80)">80 KILL</button>
+              <button type="button" class="win-btn-opt" onclick="hostChangeWinTarget(100)">100 KILL</button>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 12px; font-weight: 800; color: #ffd700;">MODE NO BOT:</span>
+            <label class="switch">
+              <input type="checkbox" id="lobbyNoBotCheckbox" onchange="hostToggleNoBot(this.checked)" />
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" class="btn-start-match" id="btnStartGame" onclick="hostStartMatch()">
+        MULAI PERTANDINGAN (MAIN)
+      </button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

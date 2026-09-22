@@ -1,0 +1,14 @@
+{
+  "name": "fps-web-multiplayer",
+  "version": "1.0.0",
+  "description": "Multiplayer Web FPS Game 4v4",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "tunnel": ".\\cloudflared.exe tunnel --protocol http2 --no-prechecks --url http://localhost:3000"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}
