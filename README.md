@@ -60,7 +60,7 @@ Sebelum menginstal, pastikan komputer Anda telah terpasang:
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/<username-anda>/wardogs-kw.git
+git clone https://github.com/fauzan1adn/wardogs-kw.git
 cd wardogs-kw
 ```
 
@@ -80,24 +80,3 @@ Buka browser favorit Anda dan akses:
 http://localhost:3000
 ```
 
----
-
-## ☁️ Panduan Deploy Online (Render.com - 100% Gratis)
-
-1. Push repository ini ke akun **GitHub** Anda.
-2. Buka dan login ke [Render Dashboard](https://dashboard.render.com/).
-3. Klik **New +** > **Web Service**.
-4. Hubungkan repository GitHub `wardogs-kw`.
-5. Pengaturan yang digunakan:
-   - **Name:** `wardogs-kw`
-   - **Environment:** `Node`
-   - **Build Command:** `npm install`
-   - **Start Command:** `node server.js`
-   - **Instance Type:** `Free`
-6. Klik **Create Web Service**. Link game online siap digunakan dalam hitungan menit!
-
----
-
-## 📄 Lisensi
-
-Proyek ini berada di bawah lisensi MIT.
